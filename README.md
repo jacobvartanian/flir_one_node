@@ -36,8 +36,22 @@ Ensure the package can be run by executing the following command from the `catki
 source devel/setup.bash
 ```
 
-Run the ROS package
+Ensure an instance of ROS is running on the machine
 
 ```
-rosrun
+roscore
+```
+
+Ensuring the camera is connected and powered on, run the ROS package
+
+```
+rosrun flir_one_node flir_one_node
+```
+
+The image can be viewed using RQT (or similar) on the following topics:
+
+```
+/camera_flir_node/rgb/image_raw
+/camera_flir_node/ir_8b/image_raw
+/camera_flir_node/ir_16b/image_raw
 ```
