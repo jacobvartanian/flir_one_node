@@ -42,6 +42,13 @@ This will create a new virtual video device for the physical video devices conne
 
 If an error message is received, refer to the troubleshooting steps in the `v4l2loopback` documentation. This will likely occur on UEFI secure boot devices, in which case, the module should be built [via DKMS](https://github.com/umlaeute/v4l2loopback#DKMS).
 
+When working with DKMS, you need to be superuser through either of the following:
+
+```
+$ su
+$ sudo -i
+```
+
 ## Install
 
 The first step is to create new dummy video devices for the FLIR One camera for the three image streams.
