@@ -147,7 +147,7 @@ void startv4l2()
 
      int i;
      int k=1;
-/*     
+     
 //open video_device0
      printf("using output device: %s\n", video_device0);
      
@@ -178,7 +178,7 @@ void startv4l2()
      assert(ret_code != -1);
 
      print_format(&vid_format0);
-*/     
+     
 //open video_device1
      printf("using output device: %s\n", video_device1);
      
@@ -247,7 +247,7 @@ void startv4l2()
 // unused
 void closev4l2()
 {
-//     close(fdwr0);
+    close(fdwr0);
      close(fdwr1);
      close(fdwr2);
 
@@ -421,7 +421,7 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
 
     
   // write video to v4l2loopback(s)
-//   write(fdwr0, fb_proc, framesize0);  // gray scale Thermal Image
+  write(fdwr0, fb_proc, framesize0);  // gray scale Thermal Image
    write(fdwr1, &buf85[28+ThermalSize], JpgSize);  // jpg Visual Image
  
   if (strncmp (&buf85[28+ThermalSize+JpgSize+17],"FFC",3)==0)
