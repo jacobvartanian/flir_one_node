@@ -16,6 +16,8 @@
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  */
 
+// #define DEBUG
+
 #include <errno.h>
 #include <string.h>
 #include <stdio.h>
@@ -82,22 +84,26 @@ int fdwr2 = 0;
 
 // -- end define v4l2 ---------------
 
- #define VENDOR_ID 0x09cb
- #define PRODUCT_ID 0x1996
+#define VENDOR_ID 0x09cb
+#define PRODUCT_ID 0x1996
 
- static struct libusb_device_handle *devh = NULL;
- int filecount=0;
- struct timeval t1, t2;
- long long fps_t;
- 
- int FFC =   0; // detect FFC
+static struct libusb_device_handle *devh = NULL;
+int filecount=0;
+struct timeval t1, t2;
+
+#ifdef DEBUG
+long long fps_t;
+#endif
+
+int FFC =   0; // detect FFC
 
 // -- buffer for EP 0x85 chunks ---------------
- #define BUF85SIZE 1048576  // size got from android app
- int buf85pointer = 0;
- unsigned char buf85[BUF85SIZE];
-  
- void print_format(struct v4l2_format*vid_format) {
+#define BUF85SIZE 1048576  // size got from android app
+int buf85pointer = 0;
+unsigned char buf85[BUF85SIZE];
+
+void print_format(struct v4l2_format*vid_format)
+{
   printf("     vid_format->type                =%d\n",     vid_format->type );
   printf("     vid_format->fmt.pix.width       =%d\n",     vid_format->fmt.pix.width );
   printf("     vid_format->fmt.pix.height      =%d\n",     vid_format->fmt.pix.height );
@@ -113,9 +119,12 @@ int fdwr2 = 0;
 void font_write(unsigned char *fb, int x, int y, const char *string)
 {
   int rx, ry;
-  while (*string) {
-    for (ry = 0; ry < 5; ++ry) {
-      for (rx = 0; rx < 7; ++rx) {
+  while (*string)
+  {
+    for (ry = 0; ry < 5; ++ry)
+    {
+      for (rx = 0; rx < 7; ++rx)
+      {
         int v = (font5x7_basic[((*string) & 0x7F) - CHAR_OFFSET][ry] >> (rx)) & 1;
 //	fb[(y+ry) * 160 + (x + rx)] = v ? 0 : 0xFF;                       // black / white
 //	fb[(y+rx) * 160 + (x + ry)] = v ? 0 : 0xFF;                       // black / white
@@ -130,127 +139,129 @@ void font_write(unsigned char *fb, int x, int y, const char *string)
 
 double raw2temperature(unsigned short RAW)
 {
- // mystery correction factor
- RAW *=4;
- // calc amount of radiance of reflected objects ( Emissivity < 1 )
- double RAWrefl=PlanckR1/(PlanckR2*(exp(PlanckB/(TempReflected+273.15))-PlanckF))-PlanckO;
- // get displayed object temp max/min
- double RAWobj=(RAW-(1-Emissivity)*RAWrefl)/Emissivity;
- // calc object temperature
+  // mystery correction factor
+  RAW *=4;
+  // calc amount of radiance of reflected objects ( Emissivity < 1 )
+  double RAWrefl=PlanckR1/(PlanckR2*(exp(PlanckB/(TempReflected+273.15))-PlanckF))-PlanckO;
+  // get displayed object temp max/min
+  double RAWobj=(RAW-(1-Emissivity)*RAWrefl)/Emissivity;
+  // calc object temperature
+  return PlanckB/log(PlanckR1/(PlanckR2*(RAWobj+PlanckO))+PlanckF)-273.15;  
  return PlanckB/log(PlanckR1/(PlanckR2*(RAWobj+PlanckO))+PlanckF)-273.15;  
+  return PlanckB/log(PlanckR1/(PlanckR2*(RAWobj+PlanckO))+PlanckF)-273.15;  
+ return PlanckB/log(PlanckR1/(PlanckR2*(RAWobj+PlanckO))+PlanckF)-273.15;  
+  return PlanckB/log(PlanckR1/(PlanckR2*(RAWobj+PlanckO))+PlanckF)-273.15;  
 }
 
 
 void startv4l2()
 {
-     int ret_code = 0;
+  int ret_code = 0;
 
-     int i;
-     int k=1;
+  int i;
+  int k=1;
      
-//open video_device0
-     printf("using output device: %s\n", video_device0);
-     
-     fdwr0 = open(video_device0, O_RDWR);
-     assert(fdwr0 >= 0);
+  //open video_device0
+  printf("using output device: %s\n", video_device0);
+  
+  fdwr0 = open(video_device0, O_RDWR);
+  assert(fdwr0 >= 0);
 
-     ret_code = ioctl(fdwr0, VIDIOC_QUERYCAP, &vid_caps0);
-     assert(ret_code != -1);
+  ret_code = ioctl(fdwr0, VIDIOC_QUERYCAP, &vid_caps0);
+  assert(ret_code != -1);
 
-     memset(&vid_format0, 0, sizeof(vid_format0));
+  memset(&vid_format0, 0, sizeof(vid_format0));
 
-     ret_code = ioctl(fdwr0, VIDIOC_G_FMT, &vid_format0);
+  ret_code = ioctl(fdwr0, VIDIOC_G_FMT, &vid_format0);
 
-     linewidth0=FRAME_WIDTH0;
-     framesize0=FRAME_WIDTH0*FRAME_HEIGHT0*1; // 8 Bit
+  linewidth0=FRAME_WIDTH0;
+  framesize0=FRAME_WIDTH0*FRAME_HEIGHT0*1; // 8 Bit
 
-     vid_format0.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-     vid_format0.fmt.pix.width = FRAME_WIDTH0;
-     vid_format0.fmt.pix.height = FRAME_HEIGHT0;
-     vid_format0.fmt.pix.pixelformat = FRAME_FORMAT0;
-     vid_format0.fmt.pix.sizeimage = framesize0;
-     vid_format0.fmt.pix.field = V4L2_FIELD_NONE;
-     vid_format0.fmt.pix.bytesperline = linewidth0;
-     vid_format0.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+  vid_format0.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  vid_format0.fmt.pix.width = FRAME_WIDTH0;
+  vid_format0.fmt.pix.height = FRAME_HEIGHT0;
+  vid_format0.fmt.pix.pixelformat = FRAME_FORMAT0;
+  vid_format0.fmt.pix.sizeimage = framesize0;
+  vid_format0.fmt.pix.field = V4L2_FIELD_NONE;
+  vid_format0.fmt.pix.bytesperline = linewidth0;
+  vid_format0.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 
-     // set data format
-     ret_code = ioctl(fdwr0, VIDIOC_S_FMT, &vid_format0);
-     assert(ret_code != -1);
+  // set data format
+  ret_code = ioctl(fdwr0, VIDIOC_S_FMT, &vid_format0);
+  assert(ret_code != -1);
 
-     print_format(&vid_format0);
-     
-//open video_device1
-     printf("using output device: %s\n", video_device1);
-     
-     fdwr1 = open(video_device1, O_RDWR);
-     assert(fdwr1 >= 0);
+  print_format(&vid_format0);
 
-     ret_code = ioctl(fdwr1, VIDIOC_QUERYCAP, &vid_caps1);
-     assert(ret_code != -1);
+  //open video_device1
+  printf("using output device: %s\n", video_device1);
+  
+  fdwr1 = open(video_device1, O_RDWR);
+  assert(fdwr1 >= 0);
 
-     memset(&vid_format1, 0, sizeof(vid_format1));
+  ret_code = ioctl(fdwr1, VIDIOC_QUERYCAP, &vid_caps1);
+  assert(ret_code != -1);
 
-     ret_code = ioctl(fdwr1, VIDIOC_G_FMT, &vid_format1);
+  memset(&vid_format1, 0, sizeof(vid_format1));
 
-     linewidth1=FRAME_WIDTH1;
-     framesize1=FRAME_WIDTH1*FRAME_HEIGHT1*1; // 8 Bit ??
+  ret_code = ioctl(fdwr1, VIDIOC_G_FMT, &vid_format1);
 
-     vid_format1.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-     vid_format1.fmt.pix.width = FRAME_WIDTH1;
-     vid_format1.fmt.pix.height = FRAME_HEIGHT1;
-     vid_format1.fmt.pix.pixelformat = FRAME_FORMAT1;
-     vid_format1.fmt.pix.sizeimage = framesize1;
-     vid_format1.fmt.pix.field = V4L2_FIELD_NONE;
-     vid_format1.fmt.pix.bytesperline = linewidth1;
-     vid_format1.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+  linewidth1=FRAME_WIDTH1;
+  framesize1=FRAME_WIDTH1*FRAME_HEIGHT1*1; // 8 Bit ??
 
-     // set data format
-     ret_code = ioctl(fdwr1, VIDIOC_S_FMT, &vid_format1);
-     assert(ret_code != -1);
+  vid_format1.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  vid_format1.fmt.pix.width = FRAME_WIDTH1;
+  vid_format1.fmt.pix.height = FRAME_HEIGHT1;
+  vid_format1.fmt.pix.pixelformat = FRAME_FORMAT1;
+  vid_format1.fmt.pix.sizeimage = framesize1;
+  vid_format1.fmt.pix.field = V4L2_FIELD_NONE;
+  vid_format1.fmt.pix.bytesperline = linewidth1;
+  vid_format1.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 
-     print_format(&vid_format1);
+  // set data format
+  ret_code = ioctl(fdwr1, VIDIOC_S_FMT, &vid_format1);
+  assert(ret_code != -1);
 
+  print_format(&vid_format1);
 
-//open video_device2
-     printf("using output device: %s\n", video_device2);
-     
-     fdwr2 = open(video_device2, O_RDWR);
-     assert(fdwr2 >= 0);
+  //open video_device2
+  printf("using output device: %s\n", video_device2);
+  
+  fdwr2 = open(video_device2, O_RDWR);
+  assert(fdwr2 >= 0);
 
-     ret_code = ioctl(fdwr2, VIDIOC_QUERYCAP, &vid_caps2);
-     assert(ret_code != -1);
+  ret_code = ioctl(fdwr2, VIDIOC_QUERYCAP, &vid_caps2);
+  assert(ret_code != -1);
 
-     memset(&vid_format2, 0, sizeof(vid_format2));
+  memset(&vid_format2, 0, sizeof(vid_format2));
 
-     ret_code = ioctl(fdwr2, VIDIOC_G_FMT, &vid_format2);
+  ret_code = ioctl(fdwr2, VIDIOC_G_FMT, &vid_format2);
 
-     linewidth2=FRAME_WIDTH2;
-     framesize2=FRAME_WIDTH2*FRAME_HEIGHT2*3; // 8x8x8 Bit
+  linewidth2=FRAME_WIDTH2;
+  framesize2=FRAME_WIDTH2*FRAME_HEIGHT2*3; // 8x8x8 Bit
 
-     vid_format2.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
-     vid_format2.fmt.pix.width = FRAME_WIDTH2;
-     vid_format2.fmt.pix.height = FRAME_HEIGHT2;
-     vid_format2.fmt.pix.pixelformat = FRAME_FORMAT2;
-     vid_format2.fmt.pix.sizeimage = framesize2;
-     vid_format2.fmt.pix.field = V4L2_FIELD_NONE;
-     vid_format2.fmt.pix.bytesperline = linewidth2;
-     vid_format2.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
+  vid_format2.type = V4L2_BUF_TYPE_VIDEO_OUTPUT;
+  vid_format2.fmt.pix.width = FRAME_WIDTH2;
+  vid_format2.fmt.pix.height = FRAME_HEIGHT2;
+  vid_format2.fmt.pix.pixelformat = FRAME_FORMAT2;
+  vid_format2.fmt.pix.sizeimage = framesize2;
+  vid_format2.fmt.pix.field = V4L2_FIELD_NONE;
+  vid_format2.fmt.pix.bytesperline = linewidth2;
+  vid_format2.fmt.pix.colorspace = V4L2_COLORSPACE_SRGB;
 
-     // set data format
-     ret_code = ioctl(fdwr2, VIDIOC_S_FMT, &vid_format2);
-     assert(ret_code != -1);
+  // set data format
+  ret_code = ioctl(fdwr2, VIDIOC_S_FMT, &vid_format2);
+  assert(ret_code != -1);
 
-     print_format(&vid_format2);
+  print_format(&vid_format2);
 }
 
 
 // unused
 void closev4l2()
 {
-    close(fdwr0);
-     close(fdwr1);
-     close(fdwr2);
-
+  close(fdwr0);
+  close(fdwr1);
+  close(fdwr2);
 }
 
 void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char buf[], unsigned char *colormap) 
@@ -259,11 +270,10 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   time_t now1;
   now1 = time(NULL); 
   if (r < 0) {
-    if (strcmp (EP_error, libusb_error_name(r))!=0)
-    {       
-        strcpy(EP_error, libusb_error_name(r));
-        fprintf(stderr, "\n: %s >>>>>>>>>>>>>>>>>bulk transfer (in) %s:%i %s\n", ctime(&now1), ep , r, libusb_error_name(r));
-        sleep(1);
+    if (strcmp (EP_error, libusb_error_name(r))!=0) {
+      strcpy(EP_error, libusb_error_name(r));
+      fprintf(stderr, "\n: %s >>>>>>>>>>>>>>>>>bulk transfer (in) %s:%i %s\n", ctime(&now1), ep , r, libusb_error_name(r));
+      sleep(1);
     }
     return;
   }
@@ -272,23 +282,28 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   unsigned char magicbyte[4]={0xEF,0xBE,0x00,0x00};
   
   if  ((strncmp (buf, magicbyte,4)==0 ) || ((buf85pointer + actual_length) >= BUF85SIZE))
-    {
-        //printf(">>>>>>>>>>>begin of new frame<<<<<<<<<<<<<\n");
-        buf85pointer=0;
-    }
- 
-  //printf("actual_length %d !!!!!\n", actual_length);
-
+  {
+#ifdef DEBUG
+    printf(">>>>>>>>>>>begin of new frame<<<<<<<<<<<<<\n");
+#endif
+    buf85pointer=0;
+  }
+  
+#ifdef DEBUG
+  printf("actual_length %d !!!!!\n", actual_length);
+#endif
   memmove(buf85+buf85pointer, buf, actual_length);
   buf85pointer=buf85pointer+actual_length;
   
   if  ((strncmp (buf85, magicbyte,4)!=0 ))
-    {
-        //reset buff pointer
-        buf85pointer=0;
-        printf("Reset buffer because of bad Magic Byte!\n");
-        return;
-    }
+  {
+    //reset buff pointer
+    buf85pointer=0;
+#ifdef DEBUG
+    printf("Reset buffer because of bad Magic Byte!\n");
+#endif
+    return;
+  }
       
   // a quick and dirty job for gcc
   uint32_t FrameSize   = buf85[ 8] + (buf85[ 9] << 8) + (buf85[10] << 16) + (buf85[11] << 24);
@@ -296,7 +311,9 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   uint32_t JpgSize     = buf85[16] + (buf85[17] << 8) + (buf85[18] << 16) + (buf85[19] << 24);
   uint32_t StatusSize  = buf85[20] + (buf85[21] << 8) + (buf85[22] << 16) + (buf85[23] << 24);
 
-  //printf("FrameSize= %d (+28=%d), ThermalSize %d, JPG %d, StatusSize %d, Pointer %d\n",FrameSize,FrameSize+28, ThermalSize, JpgSize,StatusSize,buf85pointer); 
+#ifdef DEBUG
+  printf("FrameSize= %d (+28=%d), ThermalSize %d, JPG %d, StatusSize %d, Pointer %d\n",FrameSize,FrameSize+28, ThermalSize, JpgSize,StatusSize,buf85pointer); 
+#endif
 
   if ( (FrameSize+28) > (buf85pointer) ) 
   {
@@ -309,15 +326,17 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   t1=t2;
   gettimeofday(&t2, NULL);
   // fps as moving average over last 20 frames
-//  fps_t = (19*fps_t+10000000/(((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec)))/20;
 
   filecount++;
-//  printf("#%08i %lld/10 fps:",filecount,fps_t); 
-//  for (i = 0; i <  StatusSize; i++) {
-//                    v=28+ThermalSize+JpgSize+i;
-//                    if(buf85[v]>31) {printf("%c", buf85[v]);}
-//            }
-//  printf("\n"); 
+#ifdef DEBUG
+  fps_t = (19*fps_t+10000000/(((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec)))/20;
+  printf("#%08i %lld/10 fps:",filecount,fps_t); 
+  for (i = 0; i <  StatusSize; i++) {
+                    v=28+ThermalSize+JpgSize+i;
+                    if(buf85[v]>31) {printf("%c", buf85[v]);}
+            }
+  printf("\n");
+#endif
   
   buf85pointer=0;
   
@@ -333,12 +352,13 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   int min = 0x10000, max = 0;
   float rms = 0;
 
-// Make a unsigned short array from what comes from the thermal frame
-// find the max, min and RMS (not used yet) values of the array
+  // Make a unsigned short array from what comes from the thermal frame
+  // find the max, min and RMS (not used yet) values of the array
   int maxx, maxy;
   for (y = 0; y < 120; ++y) 
   {
-    for (x = 0; x < 160; ++x) {
+    for (x = 0; x < 160; ++x)
+    {
       if (x<80) 
          v = buf85[2*(y * 164 + x) +32]+256*buf85[2*(y * 164 + x) +33];
       else
@@ -352,20 +372,21 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   }
     
   // RMS used later
-//  rms /= 160 * 120;
-//  rms = sqrtf(rms);
+  rms /= 160 * 120;
+  rms = sqrtf(rms);
   
-// scale the data in the array
+  // scale the data in the array
   int delta = max - min;
   if (!delta) delta = 1;   // if max = min we have divide by zero
   int scale = 0x10000 / delta;
 
-  for (y = 0; y < 120; ++y)    //120
+  for (y = 0; y < 120; ++y)   //120
   {
-    for (x = 0; x < 160; ++x) {   //160
+    for (x = 0; x < 160; ++x) //160
+    {
       int v = (pix[y * 160 + x] - min) * scale >> 8;
 
-// fb_proc is the gray scale frame buffer
+      // fb_proc is the gray scale frame buffer
       fb_proc[y * 160 + x] = v;   // unsigned char!!
 
     }
@@ -380,6 +401,7 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
    
   // calc medium of 2x2 center pixels
   int med = (pix[59 * 160 + 79]+pix[59 * 160 + 80]+pix[60 * 160 + 79]+pix[60 * 160 + 80])/4;
+  printf("Min: %d\n", min);
   sprintf(st2," %.1f/%.1f/%.1f'C", raw2temperature(min),raw2temperature(med),raw2temperature(max));
   strcat(st1, st2);
   
