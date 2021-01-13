@@ -5,6 +5,8 @@
   <description>Package to receive data from the FLIR One</description>
 
   <!-- One maintainer tag required, multiple allowed, one person per tag -->
+  <maintainer email="abernard@todo.todo">abernard</maintainer>
+  <maintainer email="aplyer@github.com">aplyer</maintainer>
   <maintainer email="Jacob.Vartanian@student.uts.edu.au">Jacob Vartanian</maintainer>
 
 
