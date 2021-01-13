@@ -38,15 +38,15 @@
 #include <fcntl.h>
 #include <assert.h>
 
-#define VIDEO_DEVICE0 "/dev/video4"  // gray scale thermal image
+#define VIDEO_DEVICE0 "/dev/video8"  // gray scale thermal image
 #define FRAME_WIDTH0  160
 #define FRAME_HEIGHT0 120
 
-#define VIDEO_DEVICE1 "/dev/video5" // color visible image
+#define VIDEO_DEVICE1 "/dev/video9" // color visible image
 #define FRAME_WIDTH1  640
 #define FRAME_HEIGHT1 480
 
-#define VIDEO_DEVICE2 "/dev/video6" // colorized thermal image
+#define VIDEO_DEVICE2 "/dev/video10" // colorized thermal image
 #define FRAME_WIDTH2  160
 #define FRAME_HEIGHT2 128
 

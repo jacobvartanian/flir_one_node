@@ -69,7 +69,13 @@ $ ls /dev/video*
 Create the three new virtual video devices using the following command:
 
 ```
-$ sudo modprobe v4l2loopback exclusive_caps=0,0 video_nr=<N>,<N+1>,<N+2>
+$ sudo modprobe v4l2loopback devices=3
+```
+
+Alternatively, you can specify the video number and name with the following
+
+```
+$ sudo modprobe v4l2loopback video_nr=<N>,<N+1>,<N+2> card_label="<Device name N>","<Device name N+1>","<Device name N+2>"
 ```
 
 where N is the next available virtual video device.
@@ -96,7 +102,7 @@ Microsoft® LifeCam Studio(TM): (usb-0000:3f:00.0-1.2):
 As there are eight devices already (0-7), three new additional devices will be created as video8, video9 and video10:
 
 ```
-$ sudo modprobe v4l2loopback exclusive_caps=0,0 video_nr=8,9,10
+$ sudo modprobe v4l2loopback devices=3
 $ v4l2-ctl --list-devices
 Dummy video device (0x0000) (platform:v4l2loopback-000):
 	/dev/video8
@@ -120,6 +126,14 @@ USB2.0 UVC PC Camera: USB2.0 UV (usb-0000:3c:00.0-2.3.2.1.1.1):
 Microsoft® LifeCam Studio(TM): (usb-0000:3f:00.0-1.2):
 	/dev/video6
 	/dev/video7
+```
+
+If not all dummy videos were created, you can try and reset v4l2loopback, which is loaded on boot (may occur especially if multiple video devices are connected). Recreate the devices again as follows:
+
+```
+$ sudo rmmod v4l2loopback
+$ sudo modprobe v4l2loopback devices=3
+$ v4l2-ctl --list-devices
 ```
 
 The source code of [flirone.c](src/flirone.c) needs to then be modified to assign the video streams to one of these virtual devices (lines 41-51). Only the string for the video device name needs to be changed
@@ -177,3 +191,5 @@ You should now see a stream of the video from the FLIR One.
 <https://github.com/umlaeute/v4l2loopback>
 
 <https://github.com/fnoop/flirone-v4l2>
+
+<https://news.ycombinator.com/item?id=22805925>

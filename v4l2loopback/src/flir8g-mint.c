@@ -17,11 +17,11 @@
 #include <fcntl.h>
 #include <assert.h>
 
-#define VIDEO_DEVICE0 "/dev/video4"
+#define VIDEO_DEVICE0 "/dev/video11"
 #define FRAME_WIDTH0  160
 #define FRAME_HEIGHT0 120
 
-#define VIDEO_DEVICE1 "/dev/video5"
+#define VIDEO_DEVICE1 "/dev/video12"
 #define FRAME_WIDTH1  640
 #define FRAME_HEIGHT1 480
 
