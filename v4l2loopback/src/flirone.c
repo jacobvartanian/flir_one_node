@@ -283,6 +283,7 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   
   if  ((strncmp (buf, magicbyte,4)==0 ) || ((buf85pointer + actual_length) >= BUF85SIZE))
   {
+    // buf begins with magic bytes
 #ifdef DEBUG
     printf(">>>>>>>>>>>begin of new frame<<<<<<<<<<<<<\n");
 #endif
@@ -290,11 +291,15 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
   }
   
 #ifdef DEBUG
-  printf("actual_length %d !!!!!\n", actual_length);
+  printf("actual_length: %d\n", actual_length);
 #endif
+  // Copies the bytes from buf to the appropriate location in buf85 (the number of bytes copied is defined by actual_length)
   memmove(buf85+buf85pointer, buf, actual_length);
+
+  // Move the pointer to the end of buf
   buf85pointer=buf85pointer+actual_length;
   
+  // buf85 does not begin with magic bytes. Invalid packet. Return and reset the pointer.
   if  ((strncmp (buf85, magicbyte,4)!=0 ))
   {
     //reset buff pointer
@@ -320,15 +325,24 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
     // wait for next chunk
     return;
   }
-  
+  // A full frame is available!!
+#ifdef DEBUG
+  FILE *f = fopen("one_chunk.txt", "w");
+  fprintf(f, "FrameSize= %d (+28=%d), ThermalSize %d, JPG %d, StatusSize %d, Pointer %d\n",FrameSize,FrameSize+28, ThermalSize, JpgSize,StatusSize,buf85pointer); 
+  for (int i = 0; i < buf85pointer; i++)
+  {
+    fprintf(f, "%d\n", buf85[i]);
+  }
+  fclose(f);
+#endif
   int i,v;
   // get a full frame, first print the status
   t1=t2;
   gettimeofday(&t2, NULL);
-  // fps as moving average over last 20 frames
 
   filecount++;
 #ifdef DEBUG
+  // fps as moving average over last 20 frames
   fps_t = (19*fps_t+10000000/(((t2.tv_sec * 1000000) + t2.tv_usec) - ((t1.tv_sec * 1000000) + t1.tv_usec)))/20;
   printf("#%08i %lld/10 fps:",filecount,fps_t); 
   for (i = 0; i <  StatusSize; i++) {
@@ -401,7 +415,8 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
    
   // calc medium of 2x2 center pixels
   int med = (pix[59 * 160 + 79]+pix[59 * 160 + 80]+pix[60 * 160 + 79]+pix[60 * 160 + 80])/4;
-  printf("Min: %d\n", min);
+  printf("Min: %d\t", min);
+  printf("Max: %d\n", max);
   sprintf(st2," %.1f/%.1f/%.1f'C", raw2temperature(min),raw2temperature(med),raw2temperature(max));
   strcat(st1, st2);
   
@@ -724,6 +739,7 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
             // endless loop 
             // poll Frame Endpoints 0x85 
             // don't change timeout=100ms !!
+            // Actual length is populated here with the number of bytes actually sent
             r = libusb_bulk_transfer(devh, 0x85, buf, sizeof(buf), &actual_length, 100); 
             if (actual_length > 0)
                 vframe("0x85",EP85_error, r, actual_length, buf, colormap);
