@@ -326,14 +326,21 @@ void vframe(char ep[],char EP_error[], int r, int actual_length, unsigned char b
     return;
   }
   // A full frame is available!!
-#ifdef DEBUG
-  FILE *f = fopen("one_chunk.txt", "w");
+  // FILE *f = fopen("one_chunk2.txt", "w");
+  // fprintf(f, "FrameSize= %d (+28=%d), ThermalSize %d, JPG %d, StatusSize %d, Pointer %d\n",FrameSize,FrameSize+28, ThermalSize, JpgSize,StatusSize,buf85pointer); 
+  // for (int i = 0; i < buf85pointer; i++)
+  // {
+  //   fprintf(f, "%d\n", buf85[i]);
+  // }
+  // fclose(f);
+  FILE *f = fopen("bits.txt", "a");
   fprintf(f, "FrameSize= %d (+28=%d), ThermalSize %d, JPG %d, StatusSize %d, Pointer %d\n",FrameSize,FrameSize+28, ThermalSize, JpgSize,StatusSize,buf85pointer); 
-  for (int i = 0; i < buf85pointer; i++)
+  for (int i = 0; i < 32; i++)
   {
     fprintf(f, "%d\n", buf85[i]);
   }
   fclose(f);
+#ifdef DEBUG
 #endif
   int i,v;
   // get a full frame, first print the status
