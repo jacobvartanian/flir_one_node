@@ -51,7 +51,6 @@ namespace driver_flir
         }
       }
 
-      cv_bridge::CvImage out_msg;
       cv::Mat im16 = cv::Mat (120, 160, CV_16UC1, pix);
       image_ir.image = im16;
 

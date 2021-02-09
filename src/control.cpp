@@ -42,8 +42,21 @@ void Control::dataPublisherThread(void)
     // Publish image
     if(image_ok)
     {
-      // TODO
-      // image_pub_.publish(cv_image.toImageMsg());
+      ros::Time stamp = ros::Time::now();
+      cv_bridge::CvImage out_msg;
+      out_msg.header.frame_id = "flir";
+      out_msg.header.stamp = stamp;
+      out_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
+      out_msg.image = ir_image.image;
+      ir_pub_.publish(out_msg.toImageMsg());
+
+      std_msgs::Header header;
+      header.frame_id = "flir";
+      header.stamp = stamp;
+      
+      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header,"rgb8", rgb_image.image).toImageMsg();
+      msg->encoding = "rgb8" ;
+      rgb_pub_.publish(msg);
     }
     // This delay slows the loop down for the sake of readability
     std::this_thread::sleep_for (std::chrono::milliseconds(IMAGE_PUBLISH_THREAD_DELAY_MS));
