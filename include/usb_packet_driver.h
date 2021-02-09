@@ -7,9 +7,13 @@
  * 
  */
 
+#ifndef USB_PACKET_DRIVER_H
+#define USB_PACKET_DRIVER_H
+
 #define BUF85SIZE 1048576
 #include <libusb.h>
 #include <queue>
+#include <vector>
 #include <ros/ros.h>
 
 struct buffer {
@@ -24,19 +28,19 @@ namespace usb_packet_driver
   {
   public:
 
-    UsbPacketDriver(int vendor_id, int product_id, unsigned char * magic_byte);
+    UsbPacketDriver(int vendor_id, int product_id);
     ~UsbPacketDriver();
-    bool get_next_packet(unsigned char * packet);
+    bool get_next_packet(std::vector<unsigned char> &packet);
 
     void poll_data(void);
-    void usb_setup(void);
+    void usb_setup(const unsigned char * magic_byte);
     void shutdown(void);
 
     bool ok();
 
   private:
-    void read(char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]);
-    void print_bulk_result(char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]);
+    void read(const char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]);
+    void print_bulk_result(const char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]);
 
     libusb_context *context_;
     struct libusb_device_handle *devh_;
@@ -60,6 +64,8 @@ namespace usb_packet_driver
 
     int vendor_id_;
     int product_id_;
-    unsigned char *magic_byte_;
+    const unsigned char * magic_byte_;
   };
 };
+
+#endif // USB_PACKET_DRIVER_H

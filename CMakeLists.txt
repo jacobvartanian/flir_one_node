@@ -47,7 +47,7 @@ include_directories(include
 )
 
 ## Declare a C++ executable
-add_executable(flir_one_node src/flir_one_node.cpp src/driver_flir.cpp)
+add_executable(flir_one_node src/flir_one_node.cpp src/control.cpp src/driver_flir.cpp src/usb_packet_driver.cpp)
 
 ## Add cmake target dependencies of the executable
 add_dependencies(flir_one_node ${${PROJECT_NAME}_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})

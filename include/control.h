@@ -30,6 +30,9 @@
 
 #include "driver_flir.h"
 
+#define DATA_POLLING_THREAD_DELAY_MS 20
+#define IMAGE_PUBLISH_THREAD_DELAY_MS 50
+
 class Control
 {
   public:
@@ -62,7 +65,7 @@ class Control
     image_transport::Publisher rgb_pub_;
     ros::Publisher status_pub_;
 
-    DriverFlir driver_flir_;
+    driver_flir::DriverFlir driver_flir_;
 };
 
 #endif // CONTROL_H

@@ -1,18 +1,15 @@
 #include <boost/format.hpp>
 #include "usb_packet_driver.h"
 
-//#define DEBUG_
-
 namespace usb_packet_driver
 {
-  UsbPacketDriver::UsbPacketDriver(int vendor_id, int product_id, unsigned char * magic_byte):
+  UsbPacketDriver::UsbPacketDriver(int vendor_id, int product_id):
     is_ok_(true),
     states_(INIT),
     setup_states_(SETUP_INIT),
     context_(NULL),
     vendor_id_(vendor_id),
-    product_id_(product_id),
-    magic_byte_(magic_byte)
+    product_id_(product_id)
   {
   }
 
@@ -30,18 +27,19 @@ namespace usb_packet_driver
     return is_ok_;
   }
 
-  bool UsbPacketDriver::get_next_packet(unsigned char * packet) {
+  bool UsbPacketDriver::get_next_packet(std::vector<unsigned char> &packet) {
     if (!packet_queue_.empty())
     {
       buffer next_data = packet_queue_.front();
+      unsigned int data_array_size = sizeof(next_data.data);
+      packet.insert(packet.end(), &next_data.data[0], &next_data.data[data_array_size]);
       packet_queue_.pop();
-      packet = next_data.data;
       return true;
     }
     return false;
   }
 
-  void UsbPacketDriver::print_bulk_result(char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]) {
+  void UsbPacketDriver::print_bulk_result(const char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]) {
     time_t now1;
     int i;
 
@@ -58,7 +56,7 @@ namespace usb_packet_driver
     }
   }
 
-  void UsbPacketDriver::read(char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]) {
+  void UsbPacketDriver::read(const char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]) {
     // reset buffer if the new chunk begins with magic bytes or the buffer size limit is exceeded
     if  ((strncmp (( const char *)buf, ( const char *)magic_byte_,4)==0 ) || ((usb_buffer_.pointer + actual_length) >= BUF85SIZE)) {
       usb_buffer_.pointer = 0;
@@ -73,7 +71,7 @@ namespace usb_packet_driver
       return;
     }
 
-    uint32_t FrameSize   = usb_buffer_.data[8] + (usb_buffer_.data[9] << 8) + (usb_buffer_.data[10] << 16) + (usb_buffer_.data[11] << 24);
+    uint32_t FrameSize = usb_buffer_.data[8] + (usb_buffer_.data[9] << 8) + (usb_buffer_.data[10] << 16) + (usb_buffer_.data[11] << 24);
 
     if ( (FrameSize+28) > (usb_buffer_.pointer) ) {
       // wait for next chunk
@@ -85,6 +83,7 @@ namespace usb_packet_driver
 
   void UsbPacketDriver::poll_data(void){
  	  unsigned char data[2]={0,0}; // dummy data
+     int r;
 
     switch (states_) {
       /* Flir config
@@ -101,7 +100,7 @@ namespace usb_packet_driver
 
       case INIT:
         ROS_INFO("stop interface 2 FRAME\n");
-        int r = libusb_control_transfer(devh_,1,0x0b,0,2,data,0,100);
+        r = libusb_control_transfer(devh_,1,0x0b,0,2,data,0,100);
         if (r < 0) {
           ROS_ERROR("Control Out error %d\n", r);
           error_code_ = r;
@@ -113,7 +112,7 @@ namespace usb_packet_driver
 
       case INIT_1:
         ROS_INFO("stop interface 1 FILEIO\n");
-        int r = libusb_control_transfer(devh_,1,0x0b,0,1,data,0,100);
+        r = libusb_control_transfer(devh_,1,0x0b,0,1,data,0,100);
         if (r < 0) {
           ROS_ERROR("Control Out error %d\n", r);
           error_code_ = r;
@@ -125,7 +124,7 @@ namespace usb_packet_driver
 
       case INIT_2:
         ROS_INFO("\nstart interface 1 FILEIO\n");
-        int r = libusb_control_transfer(devh_,1,0x0b,1,1,data,0,100);
+        r = libusb_control_transfer(devh_,1,0x0b,1,1,data,0,100);
         if (r < 0) {
           ROS_ERROR("Control Out error %d\n", r);
           error_code_ = r;
@@ -136,6 +135,7 @@ namespace usb_packet_driver
         break;
 
       case ASK_ZIP:
+      {
         ROS_INFO("\nask for CameraFiles.zip on EP 0x83:\n");
 
         int transferred = 0;
@@ -151,7 +151,7 @@ namespace usb_packet_driver
         }
         ROS_INFO(" ]\n");
 
-        int r = libusb_bulk_transfer(devh_, 2, my_string2, length, &transferred, 0);
+        r = libusb_bulk_transfer(devh_, 2, my_string2, length, &transferred, 0);
         if(r == 0 && transferred == length) {
           ROS_INFO("\nWrite successful!");
         }
@@ -213,12 +213,13 @@ namespace usb_packet_driver
 
         // go to next state
         states_ = ASK_VIDEO;
+      }
       break;
 
       case ASK_VIDEO:
         ROS_INFO("\nAsk for video stream, start EP 0x85:\n");
 
-        int r = libusb_control_transfer(devh_,1,0x0b,1,2,data, 2,200);
+        r = libusb_control_transfer(devh_,1,0x0b,1,2,data, 2,200);
         if (r < 0) {
           ROS_ERROR("Control Out error %d\n", r);
           error_code_ = r;
@@ -266,7 +267,9 @@ namespace usb_packet_driver
     print_bulk_result("0x83",EP83_error_, r, actual_length_, usb_buffer_.data);
   }
 
-  void UsbPacketDriver::usb_setup(void){
+  void UsbPacketDriver::usb_setup(const unsigned char * magic_byte){
+    magic_byte_ = magic_byte;
+    int r;
     do{
       switch (setup_states_) {
         case SETUP_INIT:
@@ -281,22 +284,24 @@ namespace usb_packet_driver
           break;
 
         case SETUP_LISTING:
-          int rc = 0;
-          libusb_device_handle *dev_handle = NULL   ;
-          libusb_device        **devs               ;
-          int count = libusb_get_device_list(context, &devs);
+          { // TODO See if rc can be changed to r
+            int rc = 0;
+            libusb_device_handle *dev_handle = NULL   ;
+            libusb_device        **devs               ;
+            int count = libusb_get_device_list(context_, &devs);
 
-          for (size_t idx = 0; idx < count; ++idx) {
-            libusb_device *device = devs[idx];
-            libusb_device_descriptor desc = {0};
+            for (size_t idx = 0; idx < count; ++idx) {
+              libusb_device *device = devs[idx];
+              libusb_device_descriptor desc = {0};
 
-            rc = libusb_get_device_descriptor(device, &desc);
-            assert(rc == 0);
+              rc = libusb_get_device_descriptor(device, &desc);
+              assert(rc == 0);
 
-            ROS_DEBUG("Vendor:Device = %04x:%04x", desc.idVendor, desc.idProduct);
+              ROS_DEBUG("Vendor:Device = %04x:%04x", desc.idVendor, desc.idProduct);
+            }
+            libusb_free_device_list(devs, 1); //free the list, unref the devices in it
+            setup_states_ = SETUP_FIND;
           }
-          libusb_free_device_list(devs, 1); //free the list, unref the devices in it
-          setup_states_ = SETUP_FIND;
           break;
 
         case SETUP_FIND:
@@ -312,7 +317,7 @@ namespace usb_packet_driver
 
         case SETUP_SET_CONF:
           ROS_INFO("Setting Configuration");
-          int r = libusb_set_configuration(devh, 3);
+          r = libusb_set_configuration(devh_, 3);
           if (r < 0) {
             ROS_ERROR("libusb_set_configuration error %d", r);
             setup_states_ = SETUP_ERROR;
@@ -323,7 +328,7 @@ namespace usb_packet_driver
           break;
 
         case SETUP_CLAIM_INTERFACE_0:
-          int r = libusb_claim_interface(devh, 0);
+          r = libusb_claim_interface(devh_, 0);
           if (r < 0) {
             ROS_ERROR("libusb_claim_interface 0 error %d", r);
             setup_states_ = SETUP_ERROR;
@@ -334,7 +339,7 @@ namespace usb_packet_driver
           break;
 
         case SETUP_CLAIM_INTERFACE_1:
-          int r = libusb_claim_interface(devh, 1);
+          r = libusb_claim_interface(devh_, 1);
           if (r < 0) {
             ROS_ERROR("libusb_claim_interface 1 error %d", r);
             setup_states_ = SETUP_ERROR;
@@ -345,7 +350,7 @@ namespace usb_packet_driver
           break;
 
         case SETUP_CLAIM_INTERFACE_2:
-          int r = libusb_claim_interface(devh, 2);
+          r = libusb_claim_interface(devh_, 2);
           if (r < 0) {
             ROS_ERROR("libusb_claim_interface 2 error %d", r);
             setup_states_ = SETUP_ERROR;

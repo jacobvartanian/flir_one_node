@@ -11,7 +11,7 @@
 /* MODULE flir_one_node */
 
 #include <signal.h>
-#include "driver_flir.h"
+#include "control.h"
 
 /*!
  * @brief Method to handle segmentation faults
@@ -30,22 +30,22 @@ int main(int argc, char **argv)
 {
   // Initialise this ROS node
   ros::init(argc, argv, "camera_flir_node");
-  ros::NodeHandle node;
+  ros::NodeHandle nh;
 
-  
-  ros::NodeHandle priv_nh("~");
-  ros::NodeHandle camera_nh("~");
   signal(SIGSEGV, &sigsegv_handler);
-  driver_flir::DriverFlir dvr(node, priv_nh, camera_nh);
-  ros::AsyncSpinner spinner(4);
-  dvr.setup();
-  spinner.start();
-  while (node.ok() && dvr.ok()){
-    dvr.poll();
-  }
 
-  ros::waitForShutdown();
-  dvr.shutdown();
+  // Start the threads contained in the control class
+  std::shared_ptr<Control> gc(new Control(nh));
+  std::thread dataCollectorThread(&Control::dataCollectorThread,gc);
+  std::thread dataPublisherThread(&Control::dataPublisherThread,gc);
+
+  // Handle callbacks
+  ros::spin();
+
+  // Clean up everything, shutdown ROS and rejoin the thread
+  ros::shutdown();
+  dataCollectorThread.join();
+  dataPublisherThread.join();
 
   return 0;
 }

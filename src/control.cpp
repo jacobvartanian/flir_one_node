@@ -20,7 +20,7 @@ Control::Control(ros::NodeHandle nh):
   // Initialise publishers
   ir_pub_ = it_.advertise("flirone/images/ir_16b", 1);
   rgb_pub_ = it_.advertise("flirone/images/rgb_jpg", 1);
-  status_pub_ = it_.advertise("flirone/status", 1);
+  // status_pub_ = it_.advertise("flirone/status", 1);
   ros::NodeHandle pn("~");
 }
 
@@ -38,10 +38,9 @@ void Control::dataPublisherThread(void)
   ImageData rgb_image;
   while (ros::ok())
   {
-    bool ir_image_ok = driver_flir_.getLatestImage(ir_image);
-    bool rgb_image_ok = driver_flir_.getLatestImage(rgb_image);
+    bool image_ok = driver_flir_.get_latest_images(ir_image, rgb_image);
     // Publish image
-    if((ir_image_ok) && (rgb_image_ok))
+    if(image_ok)
     {
       // TODO
       // image_pub_.publish(cv_image.toImageMsg());
@@ -57,13 +56,13 @@ void Control::dataCollectorThread(void)
   /**
   * The below loop runs until ros is shutdown
   */
-
-  while (ros::ok())
+  driver_flir_.init();
+  while (ros::ok() && driver_flir_.ok())
   {
-    // TODO Collect the Data
+    driver_flir_.run();
 
     // This delay slows the loop down for the sake of readability
-    std::this_thread::sleep_for (std::chrono::milliseconds(MAIN_THREAD_DELAY_MS));
+    std::this_thread::sleep_for (std::chrono::milliseconds(DATA_POLLING_THREAD_DELAY_MS));
   }
   std::cout << __func__ << " thread terminated" << std::endl;
 }
