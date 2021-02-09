@@ -6,7 +6,6 @@
  *  and from this ROS node.
  * 
  */
-
 /*!
  * @addtogroup Control_module Control module documentation
  * @{

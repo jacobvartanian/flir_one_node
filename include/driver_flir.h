@@ -14,6 +14,8 @@
 
 */
 #define BUF85SIZE 1048576
+#define VENDOR_ID 0x09cb
+#define PRODUCT_ID 0x1996
 
 namespace driver_flir
 {
@@ -22,9 +24,7 @@ namespace driver_flir
   {
   public:
 
-    DriverFlir( ros::NodeHandle nh,
-                ros::NodeHandle priv_nh,
-                ros::NodeHandle camera_nh);
+    DriverFlir();
     ~DriverFlir();
     void poll(void);
     void setup(void);
@@ -57,7 +57,7 @@ namespace driver_flir
 
     int error_code;
 
-    bool isOk;
+    bool is_ok;
 
     long long fps_t;
     struct timeval t1, t2;
@@ -67,7 +67,6 @@ namespace driver_flir
 
 
     ros::NodeHandle nh_;                  // node handle
-    ros::NodeHandle priv_nh_;             // private node handle
     ros::NodeHandle camera_nh_;           // camera name space handle
     std::string camera_name_;             // camera name
     std::string camera_frame_;             // camera name

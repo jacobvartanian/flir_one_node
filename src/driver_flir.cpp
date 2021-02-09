@@ -7,24 +7,23 @@
 namespace driver_flir
 {
 
-  DriverFlir::DriverFlir( ros::NodeHandle nh,
-                        ros::NodeHandle priv_nh,
-                        ros::NodeHandle camera_nh):
-    nh_(nh),
-    priv_nh_(priv_nh),
-    camera_nh_(camera_nh),
+  DriverFlir::DriverFlir():// ros::NodeHandle nh,
+                        // ros::NodeHandle priv_nh,
+                        //ros::NodeHandle camera_nh):
+    // nh_(nh),
+    // camera_nh_(camera_nh),
     camera_name_("FLIR_USB"),
     camera_frame_("flir"),
-    isOk(true),
+    is_ok(true),
     states(INIT),
     setup_states(SETUP_INIT),
     context(NULL),
-    vendor_id(0x09cb),
-    product_id(0x1996),
-    it_(new image_transport::ImageTransport(camera_nh_)){
-    image_pub_ = priv_nh.advertise<sensor_msgs::Image>("ir_16b/image_raw", 1);
-    image_rgb_pub_ = priv_nh.advertise<sensor_msgs::Image>("rgb/image_raw", 1);
-    image_8b_pub_ = priv_nh.advertise<sensor_msgs::Image>("ir_8b/image_raw", 1);
+    vendor_id(VENDOR_ID),
+    product_id(PRODUCT_ID)
+    // it_(new image_transport::ImageTransport(camera_nh_)){
+    // image_pub_ = priv_nh.advertise<sensor_msgs::Image>("ir_16b/image_raw", 1);
+    // image_rgb_pub_ = priv_nh.advertise<sensor_msgs::Image>("rgb/image_raw", 1);
+    // image_8b_pub_ = priv_nh.advertise<sensor_msgs::Image>("ir_8b/image_raw", 1);
   }
 
   DriverFlir::~DriverFlir() {
@@ -34,16 +33,18 @@ namespace driver_flir
     libusb_reset_device(devh);
     libusb_close(devh);
     libusb_exit(NULL);
-    isOk = false;
+    is_ok = false;
   }
 
   bool DriverFlir::ok(void){
-    return isOk;
+    return is_ok;
   }
 
-  void DriverFlir::publish(const sensor_msgs::ImagePtr &image) {
-    image_pub_.publish(image);
-  }
+  bool DriverFlir::getLatestImage(ImageData & image)
+
+  // void DriverFlir::publish(const sensor_msgs::ImagePtr &image) {
+  //   image_pub_.publish(image);
+  // }
 
 
   void DriverFlir::print_bulk_result(char ep[],char EP_error[], int r, int actual_length, unsigned char buf[]) {
@@ -343,7 +344,7 @@ namespace driver_flir
         break;
 
       case ERROR:
-        isOk = false;
+        is_ok = false;
         break;
     }
 
