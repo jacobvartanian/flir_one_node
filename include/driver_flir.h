@@ -18,11 +18,6 @@
     @brief ROS driver interface for UEYE-compatible USB digital cameras.
 
 */
-struct ImageData
-{
-  cv::Mat image;        /**< An image object. */
-  ros::Time time_stamp; /**< Time stamp of the image. */
-};
 
 #define VENDOR_ID 0x09cb
 #define PRODUCT_ID 0x1996
@@ -35,7 +30,7 @@ namespace driver_flir
   public:
     DriverFlir();
     ~DriverFlir();
-    bool get_latest_images(ImageData &image_ir, ImageData &image_rgb);
+    bool get_latest_images(cv::Mat &image_ir, cv::Mat &image_rgb);
     void init();
     bool ok();
     void run();

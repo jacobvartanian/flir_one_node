@@ -26,7 +26,6 @@ Control::Control(ros::NodeHandle nh):
 
 Control::~Control()
 {
-  
 }
 
 void Control::dataPublisherThread(void)
@@ -34,8 +33,8 @@ void Control::dataPublisherThread(void)
   /**
   * The below loop runs until ros is shutdown
   */
-  ImageData ir_image;
-  ImageData rgb_image;
+  cv::Mat ir_image;
+  cv::Mat rgb_image;
   while (ros::ok())
   {
     bool image_ok = driver_flir_.get_latest_images(ir_image, rgb_image);
@@ -47,14 +46,14 @@ void Control::dataPublisherThread(void)
       out_msg.header.frame_id = "flir";
       out_msg.header.stamp = stamp;
       out_msg.encoding = sensor_msgs::image_encodings::TYPE_16UC1;
-      out_msg.image = ir_image.image;
+      out_msg.image = ir_image;
       ir_pub_.publish(out_msg.toImageMsg());
 
       std_msgs::Header header;
       header.frame_id = "flir";
       header.stamp = stamp;
       
-      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header,"rgb8", rgb_image.image).toImageMsg();
+      sensor_msgs::ImagePtr msg = cv_bridge::CvImage(header,"rgb8", rgb_image).toImageMsg();
       msg->encoding = "rgb8" ;
       rgb_pub_.publish(msg);
     }

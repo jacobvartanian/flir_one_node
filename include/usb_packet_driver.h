@@ -16,7 +16,8 @@
 #include <vector>
 #include <ros/ros.h>
 
-struct buffer {
+struct buffer
+{
   int pointer;
   unsigned char data[BUF85SIZE];
 };
