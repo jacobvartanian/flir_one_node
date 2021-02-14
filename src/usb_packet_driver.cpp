@@ -36,14 +36,17 @@ namespace usb_packet_driver
 
   bool UsbPacketDriver::get_next_packet(std::vector<unsigned char> &packet)
   {
-    if (!packet_queue_.empty())
+    packet_queue_.mtx.lock();
+    if (!packet_queue_.data.empty())
     {
-      buffer next_data = packet_queue_.front();
+      buffer next_data = packet_queue_.data.front();
       unsigned int data_array_size = sizeof(next_data.data);
       packet.insert(packet.end(), &next_data.data[0], &next_data.data[data_array_size]);
-      packet_queue_.pop();
+      packet_queue_.data.pop();
+      packet_queue_.mtx.unlock();
       return true;
     }
+    packet_queue_.mtx.unlock();
     return false;
   }
 
@@ -94,7 +97,9 @@ namespace usb_packet_driver
       ROS_DEBUG("wait for next chunk");
       return;
     }
-    packet_queue_.push(usb_buffer_);
+    packet_queue_.mtx.lock();
+    packet_queue_.data.push(usb_buffer_);
+    packet_queue_.mtx.unlock();
   }
 
   int UsbPacketDriver::poll_data(void)
