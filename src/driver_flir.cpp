@@ -20,6 +20,11 @@ namespace driver_flir
     usb_driver_.usb_setup(magic_byte_);
   }
 
+  void DriverFlir::shutdown()
+  {
+    usb_driver_.shutdown();
+  }
+
   bool DriverFlir::ok()
   {
     return usb_driver_.ok();

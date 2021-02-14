@@ -30,7 +30,7 @@
 
 #include "driver_flir.h"
 
-#define DATA_POLLING_THREAD_DELAY_MS 20
+#define DATA_POLLING_THREAD_DELAY_MS 100
 #define IMAGE_PUBLISH_THREAD_DELAY_MS 50
 
 class Control

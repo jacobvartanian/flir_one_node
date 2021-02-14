@@ -6,7 +6,6 @@ namespace usb_packet_driver
   UsbPacketDriver::UsbPacketDriver(int vendor_id, int product_id):
     is_ok_(true),
     states_(INIT),
-    setup_states_(SETUP_INIT),
     context_(NULL),
     vendor_id_(vendor_id),
     product_id_(product_id)
@@ -19,8 +18,13 @@ namespace usb_packet_driver
 
   void UsbPacketDriver::shutdown()
   {
-    libusb_reset_device(devh_);
-    libusb_close(devh_);
+    ROS_INFO("Shutting down");
+    if (devh_)
+    {
+      libusb_reset_device(devh_);
+      libusb_close(devh_);
+      ROS_INFO("Device closed");
+    }
     libusb_exit(NULL);
     is_ok_ = false;
   }
@@ -93,7 +97,7 @@ namespace usb_packet_driver
     packet_queue_.push(usb_buffer_);
   }
 
-  void UsbPacketDriver::poll_data(void)
+  int UsbPacketDriver::poll_data(void)
   {
  	  unsigned char data[2]={0,0}; // dummy data
     int r;
@@ -178,6 +182,8 @@ namespace usb_packet_driver
         } else
         {
           ROS_ERROR("\nError in write! res = %d and transferred = %d\n", r, transferred);
+          states_ = ERROR;
+          break;
         }
 
         strcpy(my_string,"{\"type\":\"openFile\",\"data\":{\"mode\":\"r\",\"path\":\"CameraFiles.zip\"}}");
@@ -197,6 +203,8 @@ namespace usb_packet_driver
         } else
         {
           ROS_ERROR("\nError in write! res = %d and transferred = %d\n", r, transferred);
+          states_ = ERROR;
+          break;
         }
 
         //--------- write string: {"type":"readFile","data":{"streamIdentifier":10}}
@@ -216,6 +224,8 @@ namespace usb_packet_driver
         } else
         {
           ROS_ERROR("\nError in write! res = %d and transferred = %d\n", r, transferred);
+          states_ = ERROR;
+          break;
         }
 
         //strcpy(  my_string, "{\"type\":\"setOption\",\"data\":{\"option\":\"autoFFC\",\"value\":true}}");
@@ -234,6 +244,8 @@ namespace usb_packet_driver
         } else
         {
           ROS_ERROR("\nError in write! res = %d and transferred = %d\n", r, transferred);
+          states_ = ERROR;
+          break;
         }
 
         // go to next state
@@ -273,6 +285,7 @@ namespace usb_packet_driver
             break;
           case LIBUSB_ERROR_NO_DEVICE:
             ROS_ERROR("LIBUSB_ERROR_NO_DEVICE");
+            states_ = ERROR;
             break;
         }
         if (actual_length_ > 0)
@@ -299,20 +312,22 @@ namespace usb_packet_driver
   {
     magic_byte_ = magic_byte;
     int r;
-    while ((setup_states_ != SETUP_ERROR) && (setup_states_ != SETUP_ALL_OK))
+    states_ = INIT;
+    setup_states_t setup_states = SETUP_INIT;
+    while ((setup_states != SETUP_ERROR) && (setup_states != SETUP_ALL_OK))
     {
-      switch (setup_states_)
+      switch (setup_states)
       {
         case SETUP_INIT:
           if (libusb_init(&context_) < 0)
           {
             ROS_ERROR("Failed to initialise libusb");
-            setup_states_ = SETUP_ERROR;
+            setup_states = SETUP_ERROR;
           } else
           {
             ROS_INFO("Successfully initialised libusb");
-            setup_states_ = SETUP_FIND;
-            setup_states_ = SETUP_LISTING;
+            setup_states = SETUP_FIND;
+            setup_states = SETUP_LISTING;
           }
           break;
 
@@ -334,7 +349,7 @@ namespace usb_packet_driver
               ROS_DEBUG("Vendor:Device = %04x:%04x", desc.idVendor, desc.idProduct);
             }
             libusb_free_device_list(devs, 1); //free the list, unref the devices in it
-            setup_states_ = SETUP_FIND;
+            setup_states = SETUP_FIND;
           }
           break;
 
@@ -343,11 +358,11 @@ namespace usb_packet_driver
           if (devh_ == NULL)
           {
             ROS_ERROR_STREAM("Could not find/open device. devh : " << devh_);
-            setup_states_ = SETUP_ERROR;
+            setup_states = SETUP_ERROR;
           } else
           {
             ROS_INFO("Successfully find the Flir One G2 device");
-            setup_states_ = SETUP_SET_CONF;
+            setup_states = SETUP_SET_CONF;
           }
           break;
 
@@ -357,11 +372,11 @@ namespace usb_packet_driver
           if (r < 0)
           {
             ROS_ERROR("libusb_set_configuration error %d", r);
-            setup_states_ = SETUP_ERROR;
+            setup_states = SETUP_ERROR;
           } else
           {
             ROS_INFO("Successfully set usb configuration 3");
-            setup_states_ = SETUP_CLAIM_INTERFACE_0;
+            setup_states = SETUP_CLAIM_INTERFACE_0;
           }
           break;
 
@@ -370,11 +385,11 @@ namespace usb_packet_driver
           if (r < 0)
           {
             ROS_ERROR("libusb_claim_interface 0 error %d", r);
-            setup_states_ = SETUP_ERROR;
+            setup_states = SETUP_ERROR;
           } else
           {
             ROS_INFO("Successfully claimed interface 1");
-            setup_states_ = SETUP_CLAIM_INTERFACE_1;
+            setup_states = SETUP_CLAIM_INTERFACE_1;
           }
           break;
 
@@ -383,11 +398,11 @@ namespace usb_packet_driver
           if (r < 0)
           {
             ROS_ERROR("libusb_claim_interface 1 error %d", r);
-            setup_states_ = SETUP_ERROR;
+            setup_states = SETUP_ERROR;
           } else
           {
             ROS_INFO("Successfully claimed interface 1");
-            setup_states_ = SETUP_CLAIM_INTERFACE_2;
+            setup_states = SETUP_CLAIM_INTERFACE_2;
           }
           break;
 
@@ -396,19 +411,23 @@ namespace usb_packet_driver
           if (r < 0)
           {
             ROS_ERROR("libusb_claim_interface 2 error %d", r);
-            setup_states_ = SETUP_ERROR;
+            setup_states = SETUP_ERROR;
           } else
           {
             ROS_INFO("Successfully claimed interface 2");
-            setup_states_ = SETUP_ALL_OK;
+            setup_states = SETUP_ALL_OK;
           }
           break;
       }
     }
 
-    if (setup_states_ == SETUP_ERROR)
+    if (setup_states == SETUP_ERROR)
     {
-     	shutdown();
+     	states_ = ERROR;
+      is_ok_ = false;
+    } else
+    {
+      is_ok_ = true;
     }
   }
 };

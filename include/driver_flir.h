@@ -32,6 +32,7 @@ namespace driver_flir
     ~DriverFlir();
     bool get_latest_images(cv::Mat &image_ir, cv::Mat &image_rgb);
     void init();
+    void shutdown();
     bool ok();
     void run();
 

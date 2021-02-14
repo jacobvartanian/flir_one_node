@@ -68,13 +68,23 @@ void Control::dataCollectorThread(void)
   /**
   * The below loop runs until ros is shutdown
   */
-  driver_flir_.init();
-  while (ros::ok() && driver_flir_.ok())
+  while (ros::ok())
   {
-    driver_flir_.run();
+    ROS_INFO("Initialising Connection");
+    driver_flir_.init();
+    while (ros::ok() && driver_flir_.ok())
+    {
+      driver_flir_.run();
 
-    // This delay slows the loop down for the sake of readability
-    std::this_thread::sleep_for (std::chrono::milliseconds(DATA_POLLING_THREAD_DELAY_MS));
+      // This delay slows the loop down for the sake of readability
+      std::this_thread::sleep_for (std::chrono::milliseconds(DATA_POLLING_THREAD_DELAY_MS));
+    }
+    driver_flir_.shutdown();
+    if (ros::ok())
+    {
+      ROS_INFO("Retrying...");
+    }
+    std::this_thread::sleep_for (std::chrono::milliseconds(3000));
   }
   std::cout << __func__ << " thread terminated" << std::endl;
 }

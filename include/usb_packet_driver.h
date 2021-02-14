@@ -33,7 +33,7 @@ namespace usb_packet_driver
     ~UsbPacketDriver();
     bool get_next_packet(std::vector<unsigned char> &packet);
 
-    void poll_data(void);
+    int poll_data(void);
     void usb_setup(const unsigned char * magic_byte);
     void shutdown(void);
 
@@ -57,7 +57,6 @@ namespace usb_packet_driver
     states_t states_;
 
     enum setup_states_t {SETUP_INIT, SETUP_LISTING, SETUP_FIND, SETUP_SET_CONF, SETUP_CLAIM_INTERFACE_0,  SETUP_CLAIM_INTERFACE_1,  SETUP_CLAIM_INTERFACE_2, SETUP_ALL_OK, SETUP_ERROR};
-    setup_states_t setup_states_;
 
     int error_code_;
 
