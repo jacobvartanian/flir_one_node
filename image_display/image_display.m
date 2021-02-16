@@ -3,7 +3,7 @@ clear;
 
 KELVIN_OFFSET = 273.15;
 
-pixel_offset_error = [0, 0.015];
+pixel_offset_error = [-0.015, 0.015];
 ir_scaling = 4;
 
 ir_image_sub = rossubscriber('/flirone/images/ir_16b');
